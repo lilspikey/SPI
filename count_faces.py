@@ -9,6 +9,7 @@ Python implementation by: Roman Stanchak, James Bowman
 import sys
 import os
 import cv
+import cPickle
 from optparse import OptionParser
 
 # Parameters for haar detection
@@ -74,18 +75,25 @@ def count_faces(input_name):
     return len(faces)
 
 if __name__ == "__main__":
-    faces_found = []
-    cam_images_dir = "/Users/ian/Documents/SkiffCamDownloader/cam_images"
+    faces_found = {}
+    #cam_images_dir = "/Users/ian/Documents/SkiffCamDownloader/cam_images"
+    cam_images_dir = "cam_images"
     files = os.listdir(cam_images_dir)
     print "Files:", len(files)
     for n, filename in enumerate(files):
         if n % 100 == 0:
             print "Progress: %d of %d" % (n, len(files))
         if filename.endswith('.jpg'):
+            file_id = int(filename[:-4]) # turn 123.jpg -> int(123)
             filename = os.path.join(cam_images_dir, filename)
             nbr_faces = count_faces(filename)
             if nbr_faces > 0:
                 print "found faces:", nbr_faces
-                faces_found.append(nbr_faces)
-    print faces_found
-    
+                faces_found[file_id] = nbr_faces
+    #print faces_found
+
+    print "Dumping faces_found_raw_scan dict to disk"
+    # dump dict of file ids and nbr faces found
+    f=file('faces_found_raw_scan.pickle', 'wb')
+    cPickle.dump(faces_found,f,protocol=2)
+    f.close()
