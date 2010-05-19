@@ -31,7 +31,10 @@ def main(start, end, output):
     for i in range(start, end+1):
         current = os.path.join('cam_images', '%d.jpg' % i)
         if prev is not None:
-            print current, calc_diff(prev, current, output, i)
+            try:
+                print current, calc_diff(prev, current, output, i)
+            except IOError:
+                pass
         prev = current
     
     #cv.SaveImage('out.jpg', diff)
