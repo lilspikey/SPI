@@ -26,9 +26,11 @@ def all_images():
             yield dict(index=image_index, url=url, name=image_file)
 
 def get_image(index):
-    images = list(islice(all_images(), index, index+1))
-    if images:
-        return images[0]
+    for image in all_images():
+        if image['index'] == index:
+            return image
+        elif image['index'] > index:
+            break
     return None
 
 @route('/image/:index')
@@ -53,6 +55,33 @@ def _load_cv_image_gray(index):
     return cv.LoadImage(os.path.join(CAM_IMAGES_PATH, image['name']),
                         cv.CV_LOAD_IMAGE_GRAYSCALE)
 
+def encode_img(img):
+    request.content_type='image/jpeg'
+    encoded = cv.EncodeImage('.jpg', img)
+    return encoded.tostring()
+
+@route('/faces/:index')
+@validate(index=int)
+def faces(index):
+    img = _load_cv_image_gray(index)
+    
+    min_size = (20, 20)
+    image_scale = 2
+    haar_scale = 1.2
+    min_neighbors = 2
+    haar_flags = 0
+    cascade_file = os.path.join(ROOT_PATH, 'haarcascades', 'haarcascade_frontalface_alt.xml')
+    cascade = cv.Load(cascade_file)
+    
+    faces = cv.HaarDetectObjects(img, cascade, cv.CreateMemStorage(0),
+                                 haar_scale, min_neighbors, haar_flags, min_size)
+    for ((x, y, w, h), n) in faces:
+         pt1 = (int(x), int(y))
+         pt2 = (int(x + w), int(y + h))
+         cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+
+    return encode_img(img)
+
 @route('/diff/:first/:second')
 @validate(first=int, second=int)
 def diff(first, second):
@@ -65,9 +94,7 @@ def diff(first, second):
     
     cv.Erode(diff, diff, iterations=2)
     
-    request.content_type='image/jpeg'
-    encoded = cv.EncodeImage('.jpg', diff)
-    return encoded.tostring()
+    return encode_img(diff)
 
 if __name__ == '__main__':
     debug(True)

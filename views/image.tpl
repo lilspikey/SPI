@@ -17,6 +17,8 @@
 
 <img src="{{ current['url'] }}" />
 
+<img src="/faces/{{ current['index'] }}" />
+
 % if prev:
 <img src="/diff/{{ current['index'] }}/{{ prev['index'] }}" />
 % end
