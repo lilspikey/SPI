@@ -6,7 +6,7 @@ import os.path
 import os
 from fnmatch import fnmatch
 from itertools import islice
-
+import cv
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 CAM_IMAGES_PATH = os.path.join(ROOT_PATH, 'cam_images')
@@ -47,6 +47,27 @@ def index():
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
     return dict(images=images, pages=pages)
+
+def _load_cv_image_gray(index):
+    image = get_image(index)
+    return cv.LoadImage(os.path.join(CAM_IMAGES_PATH, image['name']),
+                        cv.CV_LOAD_IMAGE_GRAYSCALE)
+
+@route('/diff/:first/:second')
+@validate(first=int, second=int)
+def diff(first, second):
+    im1 = _load_cv_image_gray(first)
+    im2 = _load_cv_image_gray(second)
+    
+    diff = cv.CreateImage((im1.width,im1.height), im1.depth, im1.nChannels)
+    
+    cv.AbsDiff(im1, im2, diff)
+    
+    cv.Erode(diff, diff, iterations=2)
+    
+    request.content_type='image/jpeg'
+    encoded = cv.EncodeImage('.jpg', diff)
+    return encoded.tostring()
 
 if __name__ == '__main__':
     debug(True)
