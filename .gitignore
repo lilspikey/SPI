@@ -2,3 +2,4 @@
 /cam_images
 /cam_images.tar
 .DS_Store
+*.pyc
