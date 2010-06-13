@@ -103,7 +103,9 @@ def image(cursor, index):
 def index(cursor):
     page = int(request.GET.get('page', 1))
     has_faces = request.GET.get('has_faces', None)
-    diff_gt = request.GET.get('diff_gt', None)
+    diff_gt = request.GET.get('diff_gt', '')
+    if diff_gt.strip() == '':
+        diff_gt = None
     
     per_page = 30
     images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt));
@@ -198,6 +200,7 @@ def diff_calc():
             second = index -1
         
         save_diff(index, second)
+    redirect("/")
 
 def create_db(cursor):
     statements = [

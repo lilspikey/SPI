@@ -30,8 +30,14 @@ ul.pagination li a.selected {
     font-weight: bold;
     text-decoration: none;
 }
+.nav {
+    clear: both;
+}
 </style>
 <h1>Images</h1>
+
+
+
 <ul class="pagination">
     <li>Pages:</li>
 % prev_shown = False
@@ -62,3 +68,22 @@ ul.pagination li a.selected {
     </li>
 % end
 </ul>
+
+<div class="nav">
+    <ul>
+        <li>
+            <form action="/" method="get">
+                <input type="checkbox" name="has_faces" id="has_faces" 
+                % if has_faces:
+                checked="checked"
+                % end
+                />
+                <label for="has_faces">has faces</label>
+                <input type="text" size="4" name="diff_gt" id="diff_gt" value="{{ diff_gt }}" />
+                <label for="diff_gt">diff gt</label>
+                <input type="submit" />
+            </form>
+        </li>
+        <li><a href="/diff/calc">Calculate Diffs (takes a while)</a></li>
+    </ul>
+</div>
