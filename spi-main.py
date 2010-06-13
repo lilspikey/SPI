@@ -72,6 +72,8 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None):
         sql += ' where '
         sql += (' and '.join(filters))
     
+    sql += ' order by id asc'
+    
     images = cursor.execute(sql, args)
     for id, filename in images:
         url = '/'.join(['', 'cam_images', filename])
