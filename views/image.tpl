@@ -18,6 +18,7 @@
 <h1>{{ current['name'] }}</h1>
 
 <div class='nav'>
+<a href="/">&lt; Images</a> <br />
 % if prev:
 <a href="/image/{{ prev['index'] }}">&lt;&lt;--</a>
 % end

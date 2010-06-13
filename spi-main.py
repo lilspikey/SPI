@@ -157,12 +157,18 @@ def diff(cursor, first, second):
     
     return encode_img(diff)
 
-def diff_image(im1, im2):    
+def pre_smooth(im):
+    cv.EqualizeHist(im, im)
+
+def diff_image(im1, im2):
+    pre_smooth(im1)
+    pre_smooth(im2)
+    
     diff = cv.CreateImage((im1.width,im1.height), im1.depth, im1.nChannels)
     
     cv.AbsDiff(im1, im2, diff)
     
-    cv.Erode(diff, diff, iterations=2)
+    cv.Erode(diff, diff, iterations=5)
     
     return diff
 
