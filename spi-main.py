@@ -44,11 +44,11 @@ def image(index):
 @view('index')
 def index():
     page = int(request.GET.get('page', 1))
-    per_page = 100
+    per_page = 30
     images = list(all_images());
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
-    return dict(images=images, pages=pages)
+    return dict(images=images, pages=pages, current_page=page)
 
 def _load_cv_image_gray(index):
     image = get_image(index)

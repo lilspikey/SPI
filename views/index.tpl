@@ -29,8 +29,17 @@ ul.pagination li {
 <h1>Images</h1>
 <ul class="pagination">
     <li>Pages:</li>
+% prev_shown = False
 % for page in pages:
+    % if page == 1 or page == len(pages) or (abs(current_page-page) < 10):
+        % prev_shown = True
     <li><a href="?page={{ page }}">{{ page }}</a></li>
+    % else:
+        % if prev_shown:
+        <li>...</li>
+        % end
+        % prev_shown = False
+    % end
 % end
 </ul>
 
