@@ -104,7 +104,7 @@ def index(cursor):
     images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt));
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
-    return dict(images=images, pages=pages, current_page=page)
+    return dict(images=images, pages=pages, current_page=page, has_faces=has_faces, diff_gt=diff_gt)
 
 def _load_cv_image_gray(cursor, index):
     image = get_image(cursor, index)

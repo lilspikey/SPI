@@ -38,7 +38,7 @@ ul.pagination li a.selected {
 % for page in pages:
     % if page == 1 or page == len(pages) or (abs(current_page-page) < 10):
         % prev_shown = True
-    <li><a href="?page={{ page }}"
+    <li><a href="?page={{ page }}{{ '&amp;has_faces=%s' % has_faces if has_faces else '' }}{{ '&amp;diff_gt=%s' % diff_gt if diff_gt else '' }}"
         % if page == current_page:
         class="selected"
         % end
