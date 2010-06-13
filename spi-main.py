@@ -74,10 +74,13 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None):
     
     sql += ' order by id asc'
     
-    images = cursor.execute(sql, args)
-    for id, filename in images:
-        url = '/'.join(['', 'cam_images', filename])
-        yield dict(index=id, url=url, name=filename)
+    try:
+        images = cursor.execute(sql, args)
+        for id, filename in images:
+            url = '/'.join(['', 'cam_images', filename])
+            yield dict(index=id, url=url, name=filename)
+    except db.OperationalError:
+        pass
 
 def get_image(cursor, index):
     for image in read_images(cursor, id=index):

@@ -85,5 +85,6 @@ ul.pagination li a.selected {
             </form>
         </li>
         <li><a href="/diff/calc">Calculate Diffs (takes a while)</a></li>
+        <li><a href="/init">Init DB</a></li>
     </ul>
 </div>
