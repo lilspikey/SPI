@@ -89,8 +89,13 @@ def get_image(cursor, index):
 @view('image')
 @with_db_cursor
 def image(cursor, index):
+    if index == 1:
+        second = index + 1
+    else:
+        second = index - 1
+    diff = image_diff_sd(cursor, index, second)
     prev, current, next = get_image(cursor, index-1), get_image(cursor, index), get_image(cursor, index+1)
-    return dict(prev=prev, current=current, next=next)
+    return dict(prev=prev, current=current, next=next, diff=diff)
 
 @route('/')
 @view('index')
@@ -159,13 +164,7 @@ def diff_image(im1, im2):
     
     return diff
 
-
-@with_db_cursor
-def get_images_for_diff(cursor):
-    return list(read_images(cursor, not_diffed=True))
-
-@with_db_cursor
-def save_diff(cursor, id1, id2):
+def image_diff_sd(cursor, id1, id2):
     im1 = _load_cv_image_gray(cursor, id1)
     im2 = _load_cv_image_gray(cursor, id2)
     
@@ -173,7 +172,17 @@ def save_diff(cursor, id1, id2):
     
     avg, sd = cv.AvgSdv(diff)
     
-    cursor.execute('update spi_image set diff = ? where id = ?', (sd[0], id1))
+    return sd[0]
+
+@with_db_cursor
+def get_images_for_diff(cursor):
+    return list(read_images(cursor, not_diffed=True))
+
+@with_db_cursor
+def save_diff(cursor, id1, id2):
+    sd = image_diff_sd(cursor, id1, id2)
+    
+    cursor.execute('update spi_image set diff = ? where id = ?', (sd, id1))
 
 @route('/diff/calc')
 def diff_calc():

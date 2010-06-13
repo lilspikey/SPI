@@ -43,7 +43,7 @@
 % if prev:
 <div class="image">
     <img src="/diff/{{ current['index'] }}/{{ prev['index'] }}" />
-    <h2>Diff</h2>
+    <h2>Diff ({{ diff }})</h2>
 </div>
 % end
 
