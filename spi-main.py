@@ -49,7 +49,7 @@ def all_images():
             url = '/'.join(['', 'cam_images', image_file])
             yield dict(index=image_index, url=url, name=image_file)
 
-def read_images(cursor, has_faces=None, diff_gt=None, id=None):
+def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None):
     sql = 'select id, filename from spi_image'
     filters = []
     args = []
@@ -60,6 +60,9 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None):
     if diff_gt is not None:
         filters.append('diff > ?')
         args.append(diff_gt)
+    
+    if not_diffed is not None:
+        filters.append('diff = 0')
     
     if id is not None:
         filters.append('id = ?')
@@ -141,14 +144,49 @@ def diff(cursor, first, second):
     im1 = _load_cv_image_gray(cursor, first)
     im2 = _load_cv_image_gray(cursor, second)
     
+    diff = diff_image(im1, im2)
+    
+    return encode_img(diff)
+
+def diff_image(im1, im2):    
     diff = cv.CreateImage((im1.width,im1.height), im1.depth, im1.nChannels)
     
     cv.AbsDiff(im1, im2, diff)
     
     cv.Erode(diff, diff, iterations=2)
     
-    return encode_img(diff)
+    return diff
 
+
+@with_db_cursor
+def get_images_for_diff(cursor):
+    return list(read_images(cursor, not_diffed=True))
+
+@with_db_cursor
+def save_diff(cursor, id1, id2):
+    im1 = _load_cv_image_gray(cursor, id1)
+    im2 = _load_cv_image_gray(cursor, id2)
+    
+    diff = diff_image(im1, im2)
+    
+    avg, sd = cv.AvgSdv(diff)
+    
+    cursor.execute('update spi_image set diff = ? where id = ?', (sd[0], id1))
+
+@route('/diff/calc')
+def diff_calc():
+    images = get_images_for_diff()
+    for image in images:
+        index = image['index']
+        
+        print "diff", index
+        
+        if index == 1:
+            second = index +1
+        else:
+            second = index -1
+        
+        save_diff(index, second)
 
 def create_db(cursor):
     statements = [
