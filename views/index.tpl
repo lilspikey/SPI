@@ -62,7 +62,11 @@ ul.pagination li a.selected {
 % for image in images:
     <li>
         <a href="image/{{ image['index'] }}">
+            % if has_faces:
+            <img src="/faces/{{ image['index'] }}" />
+            % else:
             <img src="{{ image['url'] }}" />
+            % end
             {{ image['name'] }}
         </a>
     </li>
@@ -81,10 +85,17 @@ ul.pagination li a.selected {
                 <label for="has_faces">has faces</label>
                 <input type="text" size="4" name="diff_gt" id="diff_gt" value="{{ diff_gt if diff_gt else '' }}" />
                 <label for="diff_gt">diff gt</label>
-                <input type="submit" />
+                <input type="submit" value='Query' />
             </form>
         </li>
         <li><a href="/diff/calc">Calculate Diffs (takes a while)</a></li>
+        <li>
+            <form action="/faces/detect" method="get">
+                <input type="text" size="4" name="diff_gt" id="diff_gt" value="{{ diff_gt if diff_gt else '' }}" />
+                <label for="diff_gt">diff gt</label>
+                <input type="submit" value='Detect Faces' />
+            </form>
+        </li>
         <li><a href="/init">Init DB</a></li>
     </ul>
 </div>

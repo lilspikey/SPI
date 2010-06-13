@@ -131,7 +131,16 @@ def encode_img(img):
 @with_db_cursor
 def faces(cursor, index):
     img = _load_cv_image_gray(cursor, index)
+    faces = find_faces(img)
     
+    for ((x, y, w, h), n) in faces:
+         pt1 = (int(x), int(y))
+         pt2 = (int(x + w), int(y + h))
+         cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+
+    return encode_img(img)
+
+def find_faces(img):
     min_size = (20, 20)
     image_scale = 2
     haar_scale = 1.2
@@ -142,12 +151,37 @@ def faces(cursor, index):
     
     faces = cv.HaarDetectObjects(img, cascade, cv.CreateMemStorage(0),
                                  haar_scale, min_neighbors, haar_flags, min_size)
-    for ((x, y, w, h), n) in faces:
-         pt1 = (int(x), int(y))
-         pt2 = (int(x + w), int(y + h))
-         cv.Rectangle(img, pt1, pt2, cv.RGB(255, 0, 0), 3, 8, 0)
+    return faces
 
-    return encode_img(img)
+@route('/faces/detect')
+def detect_faces():
+    diff_gt = request.GET.get('diff_gt', '')
+    if diff_gt.strip() == '':
+        diff_gt = None
+    
+    images = get_images_for_detect(diff_gt)
+    for image in images:
+        index = image['index']
+        
+        print "detect", index
+        
+        save_detect(image)
+    redirect("/")
+
+@with_db_cursor
+def save_detect(cursor, image):
+    id = image['index']
+    
+    img = _load_cv_image_gray(cursor, id)
+    faces = find_faces(img)
+    
+    count = len(faces)
+    
+    cursor.execute('update spi_image set face_count = ? where id = ?', (count, id))
+
+@with_db_cursor
+def get_images_for_detect(cursor, diff_gt):
+    return list(read_images(cursor, diff_gt=diff_gt))
 
 @route('/diff/:first/:second')
 @validate(first=int, second=int)
