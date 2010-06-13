@@ -49,33 +49,60 @@ def all_images():
             url = '/'.join(['', 'cam_images', image_file])
             yield dict(index=image_index, url=url, name=image_file)
 
-def get_image(index):
-    for image in all_images():
-        if image['index'] == index:
-            return image
-        elif image['index'] > index:
-            break
+def read_images(cursor, has_faces=None, diff_gt=None, id=None):
+    sql = 'select id, filename from spi_image'
+    filters = []
+    args = []
+    
+    if has_faces is not None:
+        filters.append('face_count > 0')
+    
+    if diff_gt is not None:
+        filters.append('diff > ?')
+        args.append(diff_gt)
+    
+    if id is not None:
+        filters.append('id = ?')
+        args.append(id)
+    
+    if filters:
+        sql += ' where '
+        sql += (' and '.join(filters))
+    
+    images = cursor.execute(sql, args)
+    for id, filename in images:
+        url = '/'.join(['', 'cam_images', filename])
+        yield dict(index=id, url=url, name=filename)
+
+def get_image(cursor, index):
+    for image in read_images(cursor, id=index):
+        return image
     return None
 
 @route('/image/:index')
 @validate(index=int)
 @view('image')
-def image(index):
-    prev, current, next = get_image(index-1), get_image(index), get_image(index+1)
+@with_db_cursor
+def image(cursor, index):
+    prev, current, next = get_image(cursor, index-1), get_image(cursor, index), get_image(cursor, index+1)
     return dict(prev=prev, current=current, next=next)
 
 @route('/')
 @view('index')
-def index():
+@with_db_cursor
+def index(cursor):
     page = int(request.GET.get('page', 1))
+    has_faces = request.GET.get('has_faces', None)
+    diff_gt = request.GET.get('diff_gt', None)
+    
     per_page = 30
-    images = list(all_images());
+    images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt));
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
     return dict(images=images, pages=pages, current_page=page)
 
-def _load_cv_image_gray(index):
-    image = get_image(index)
+def _load_cv_image_gray(cursor, index):
+    image = get_image(cursor, index)
     return cv.LoadImage(os.path.join(CAM_IMAGES_PATH, image['name']),
                         cv.CV_LOAD_IMAGE_GRAYSCALE)
 
@@ -86,8 +113,9 @@ def encode_img(img):
 
 @route('/faces/:index')
 @validate(index=int)
-def faces(index):
-    img = _load_cv_image_gray(index)
+@with_db_cursor
+def faces(cursor, index):
+    img = _load_cv_image_gray(cursor, index)
     
     min_size = (20, 20)
     image_scale = 2
@@ -108,9 +136,10 @@ def faces(index):
 
 @route('/diff/:first/:second')
 @validate(first=int, second=int)
-def diff(first, second):
-    im1 = _load_cv_image_gray(first)
-    im2 = _load_cv_image_gray(second)
+@with_db_cursor
+def diff(cursor, first, second):
+    im1 = _load_cv_image_gray(cursor, first)
+    im2 = _load_cv_image_gray(cursor, second)
     
     diff = cv.CreateImage((im1.width,im1.height), im1.depth, im1.nChannels)
     
