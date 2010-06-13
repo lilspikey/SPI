@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 from bottle import route, send_file, request, response,\
-                   json_dumps, run, debug, view, validate
+                   json_dumps, run, debug, view, validate, redirect,\
+                   BreakTheBottle
+import sqlite3 as db
 import os.path
 import os
 from fnmatch import fnmatch
@@ -10,6 +12,28 @@ import cv
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 CAM_IMAGES_PATH = os.path.join(ROOT_PATH, 'cam_images')
+
+DB_FILE = os.path.join(ROOT_PATH, 'spi.db')
+
+def with_db_cursor(fn):
+    def _decorated(*arg, **kw):
+        committed = False
+        conn = db.connect(DB_FILE)
+        try:
+            cursor = conn.cursor()
+            val = fn(cursor, *arg, **kw)
+            committed = True
+            conn.commit()
+            return val
+        except BreakTheBottle:
+            committed = True
+            conn.commit()
+            raise
+        finally:
+            if not committed:
+                conn.rollback()
+            conn.close()
+    return _decorated
 
 @route('/cam_images/(?P<filename>.*)')
 def cam_images(filename):
@@ -95,6 +119,29 @@ def diff(first, second):
     cv.Erode(diff, diff, iterations=2)
     
     return encode_img(diff)
+
+
+def create_db(cursor):
+    statements = [
+        'create table if not exists spi_image (id integer primary key, filename text unique, face_count integer, diff real)',
+        'create index if not exists spi_image_filename_index on spi_image (filename)',
+        'create index if not exists spi_image_face_count_index on spi_image (face_count)',
+        'create index if not exists spi_image_diff_index on spi_image (diff)',
+    ]
+    for stmt in statements:
+        cursor.execute(stmt)
+
+@route('/init')
+@with_db_cursor
+def init(cursor):
+    create_db(cursor)
+    print "made db"
+    images = list(all_images());
+    images = [(i+1, image['name'], 0, 0.0) for (i,image) in enumerate(images)]
+    print "prepared images"
+    res = cursor.executemany('insert or replace into spi_image (id, filename, face_count, diff) values(?,?,?,?)', images)
+    print "inserted"
+    redirect("/")
 
 if __name__ == '__main__':
     debug(True)
