@@ -79,7 +79,7 @@ ul.pagination li a.selected {
                 % end
                 />
                 <label for="has_faces">has faces</label>
-                <input type="text" size="4" name="diff_gt" id="diff_gt" value="{{ diff_gt }}" />
+                <input type="text" size="4" name="diff_gt" id="diff_gt" value="{{ diff_gt if diff_gt else '' }}" />
                 <label for="diff_gt">diff gt</label>
                 <input type="submit" />
             </form>
