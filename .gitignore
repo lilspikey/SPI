@@ -3,3 +3,4 @@
 /cam_images.tar
 .DS_Store
 *.pyc
+spi.db
