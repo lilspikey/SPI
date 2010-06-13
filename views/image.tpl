@@ -1,7 +1,23 @@
+<style>
 
+.image {
+    width: 340px;
+    padding: 10px;
+    text-align: center;
+    float: left;
+}
+.image img {
+    width: 320px;
+}
+
+.nav {
+    margin-bottom: 1em;
+}
+
+</style>
 <h1>{{ current['name'] }}</h1>
 
-<div>
+<div class='nav'>
 % if prev:
 <a href="/image/{{ prev['index'] }}">&lt;&lt;--</a>
 % end
@@ -13,13 +29,21 @@
 % end
 </div>
 
-<br />
 
-<img src="{{ current['url'] }}" />
+<div class="image">
+    <img src="{{ current['url'] }}" />
+    <h2>Source</h2>
+</div>
 
-<img src="/faces/{{ current['index'] }}" />
+<div class="image">
+    <img src="/faces/{{ current['index'] }}" />
+    <h2>Faces</h2>
+</div>
 
 % if prev:
-<img src="/diff/{{ current['index'] }}/{{ prev['index'] }}" />
+<div class="image">
+    <img src="/diff/{{ current['index'] }}/{{ prev['index'] }}" />
+    <h2>Diff</h2>
+</div>
 % end
 
