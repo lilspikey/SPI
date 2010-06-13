@@ -25,6 +25,11 @@ ul.pagination li {
     padding: 0;
     margin: 0;
 }
+ul.pagination li a.selected {
+    color: black;
+    font-weight: bold;
+    text-decoration: none;
+}
 </style>
 <h1>Images</h1>
 <ul class="pagination">
@@ -33,7 +38,11 @@ ul.pagination li {
 % for page in pages:
     % if page == 1 or page == len(pages) or (abs(current_page-page) < 10):
         % prev_shown = True
-    <li><a href="?page={{ page }}">{{ page }}</a></li>
+    <li><a href="?page={{ page }}"
+        % if page == current_page:
+        class="selected"
+        % end
+        >{{ page }}</a></li>
     % else:
         % if prev_shown:
         <li>...</li>
