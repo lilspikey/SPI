@@ -49,7 +49,7 @@ def all_images():
             url = '/'.join(['', 'cam_images', image_file])
             yield dict(index=image_index, url=url, name=image_file)
 
-def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None):
+def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, not_detected=None):
     sql = 'select id, filename from spi_image'
     filters = []
     args = []
@@ -63,6 +63,9 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None):
     
     if not_diffed is not None:
         filters.append('diff = 0')
+    
+    if not_detected:
+        filters.append('face_count < 0')
     
     if id is not None:
         filters.append('id = ?')
@@ -160,6 +163,7 @@ def detect_faces():
         diff_gt = None
     
     images = get_images_for_detect(diff_gt)
+    print "examining %d images for faces" % len(images)
     for image in images:
         index = image['index']
         
@@ -181,7 +185,7 @@ def save_detect(cursor, image):
 
 @with_db_cursor
 def get_images_for_detect(cursor, diff_gt):
-    return list(read_images(cursor, diff_gt=diff_gt))
+    return list(read_images(cursor, not_detected=True, diff_gt=diff_gt))
 
 @route('/diff/:first/:second')
 @validate(first=int, second=int)
@@ -247,23 +251,36 @@ def diff_calc():
 
 def create_db(cursor):
     statements = [
-        'create table if not exists spi_image (id integer primary key, filename text unique, face_count integer, diff real)',
+        'create table if not exists spi_image (id integer primary key, filename text unique, date text, face_count integer, diff real)',
         'create index if not exists spi_image_filename_index on spi_image (filename)',
+        'create index if not exists spi_image_date_index on spi_image (date)',
         'create index if not exists spi_image_face_count_index on spi_image (face_count)',
         'create index if not exists spi_image_diff_index on spi_image (diff)',
     ]
     for stmt in statements:
         cursor.execute(stmt)
 
+def read_image_dates():
+    images = open('image_dates.csv', 'r')
+    for line in images:
+        line = line.strip()
+        cols = line.split(',')
+        if len(cols) == 2:
+            id, date = cols
+            filename = '%s.jpg' % id
+            full_path = os.path.join(CAM_IMAGES_PATH, filename)
+            if os.path.exists(full_path):
+                yield filename, date
+
 @route('/init')
 @with_db_cursor
 def init(cursor):
     create_db(cursor)
     print "made db"
-    images = list(all_images());
-    images = [(i+1, image['name'], 0, 0.0) for (i,image) in enumerate(images)]
+    images = list(read_image_dates());
+    images = [(filename, date, -1, 0.0) for (filename, date) in images]
     print "prepared images"
-    res = cursor.executemany('insert or replace into spi_image (id, filename, face_count, diff) values(?,?,?,?)', images)
+    res = cursor.executemany('insert into spi_image (filename, date, face_count, diff) values(?,?,?,?)', images)
     print "inserted"
     redirect("/")
 
