@@ -260,7 +260,7 @@ def create_db(cursor):
     for stmt in statements:
         cursor.execute(stmt)
 
-def read_image_dates():
+def read_image_dates(existing):
     images = open('image_dates.csv', 'r')
     for line in images:
         line = line.strip()
@@ -268,20 +268,25 @@ def read_image_dates():
         if len(cols) == 2:
             id, date = cols
             filename = '%s.jpg' % id
-            full_path = os.path.join(CAM_IMAGES_PATH, filename)
-            if os.path.exists(full_path):
-                yield filename, date
+            if filename not in existing:
+                full_path = os.path.join(CAM_IMAGES_PATH, filename)
+                if os.path.exists(full_path):
+                    yield filename, date
 
 @route('/init')
 @with_db_cursor
 def init(cursor):
     create_db(cursor)
+    existing = set()
+    for row in cursor.execute('select filename from spi_image'):
+        existing.add(row[0])
     print "made db"
-    images = list(read_image_dates());
-    images = [(filename, date, -1, 0.0) for (filename, date) in images]
-    print "prepared images"
-    res = cursor.executemany('insert into spi_image (filename, date, face_count, diff) values(?,?,?,?)', images)
-    print "inserted"
+    images = list(read_image_dates(existing));
+    if images:
+        images = [(filename, date, -1, 0.0) for (filename, date) in images]
+        print "prepared images"
+        res = cursor.executemany('insert into spi_image (filename, date, face_count, diff) values(?,?,?,?)', images)
+        print "inserted"
     redirect("/")
 
 if __name__ == '__main__':
