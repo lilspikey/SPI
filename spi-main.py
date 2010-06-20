@@ -9,6 +9,10 @@ import os
 from fnmatch import fnmatch
 from itertools import islice
 import cv
+import urllib2
+import json
+import re
+import datetime
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 CAM_IMAGES_PATH = os.path.join(ROOT_PATH, 'cam_images')
@@ -49,7 +53,11 @@ def all_images():
             url = '/'.join(['', 'cam_images', image_file])
             yield dict(index=image_index, url=url, name=image_file)
 
-def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, not_detected=None):
+def parse_date(date):
+    year, mon, day = date.split('-')
+    return datetime.date(int(year), int(mon), int(day))
+
+def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, not_detected=None, dates=None):
     sql = 'select id, filename from spi_image'
     filters = []
     args = []
@@ -67,6 +75,19 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, 
     if not_detected:
         filters.append('face_count < 0')
     
+    if dates:
+        date_filters = []
+        if not isinstance(dates, list):
+            dates = [dates]
+        for date in dates:
+            # extract date part
+            date = re.sub(r'(\d{4}-\d\d-\d\d).*', r'\1', date)
+            date_filters.append('(date >= ? and date < ?)')
+            args.append(date)
+            following = parse_date(date) + datetime.timedelta(days=1)
+            args.append(following)
+        filters.append('%s' % (' or '.join(date_filters)))
+    
     if id is not None:
         filters.append('id = ?')
         args.append(id)
@@ -76,6 +97,9 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, 
         sql += (' and '.join(filters))
     
     sql += ' order by id asc'
+    
+    print sql
+    print args
     
     try:
         images = cursor.execute(sql, args)
@@ -110,11 +134,13 @@ def index(cursor):
     page = int(request.GET.get('page', 1))
     has_faces = request.GET.get('has_faces', None)
     diff_gt = request.GET.get('diff_gt', '')
+    dates = request.GET.get('date', None)
+    
     if diff_gt.strip() == '':
         diff_gt = None
     
     per_page = 30
-    images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt));
+    images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt, dates=dates));
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
     return dict(images=images, pages=pages, current_page=page, has_faces=has_faces, diff_gt=diff_gt)
@@ -249,6 +275,55 @@ def diff_calc():
         save_diff(index, second)
     redirect("/")
 
+def read_checkins(cursor):
+    for url, created, name, image_url in cursor.execute('select url, created, name, image_url from checkins order by created asc'):
+        yield {'url': url, 'created': created, 'name': name, 'image_url': image_url}
+
+@route('/checkins')
+@view('checkins')
+@with_db_cursor
+def checkins(cursor):
+    checkins = list(read_checkins(cursor))
+    
+    return dict(checkins=checkins)
+
+@route('/checkins/fetch')
+@with_db_cursor
+def checkins_fetch(cursor):
+    GOWALLA_SPOT_ID = 32096
+    GOWALLA_API_KEY = 'fa574894bddc43aa96c556eb457b4009'
+    
+    url = 'http://api.gowalla.com/checkins?spot_id=%d' % GOWALLA_SPOT_ID
+    
+    checkins = urllib2.Request(url)
+    checkins.add_header('Accept', 'application/json')
+    checkins.add_header('X-Gowalla-API-Key', GOWALLA_API_KEY)
+    
+    json_checkins = json.loads(urllib2.urlopen(checkins).read())
+    
+    existing = set()
+    for row in cursor.execute('select url from checkins'):
+        existing.add(row[0])
+    
+    checkins = []
+    
+    for json_checkin in json_checkins['events']:
+        url = json_checkin['url']
+        if url not in existing:
+            created = json_checkin['created_at']
+            user = json_checkin['user']
+            name = '%s %s' % (user['first_name'], user['last_name'])
+            image_url = user['image_url']
+            
+            created = re.sub(r'^(\d{4}-\d\d-\d\d)T(\d\d:\d\d:\d\d).*$', r'\1 \2', created)
+            
+            checkins.append((url, created, name, image_url))
+    
+    if checkins:
+        cursor.executemany('insert into checkins (url, created, name, image_url) values(?,?,?,?)', checkins)
+    
+    redirect("/checkins")
+
 def create_db(cursor):
     statements = [
         'create table if not exists spi_image (id integer primary key, filename text unique, date text, face_count integer, diff real)',
@@ -256,6 +331,9 @@ def create_db(cursor):
         'create index if not exists spi_image_date_index on spi_image (date)',
         'create index if not exists spi_image_face_count_index on spi_image (face_count)',
         'create index if not exists spi_image_diff_index on spi_image (diff)',
+        'create table if not exists checkins (id integer primary key, url text unique, name text, image_url text, created text)',
+        'create index if not exists checkins_name on checkins (name)',
+        'create index if not exists checkins_created on checkins (created)',
     ]
     for stmt in statements:
         cursor.execute(stmt)
