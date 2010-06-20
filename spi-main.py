@@ -106,9 +106,6 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, 
     
     sql += ' order by id asc'
     
-    print sql
-    print args
-    
     try:
         images = cursor.execute(sql, args)
         for id, filename in images:
