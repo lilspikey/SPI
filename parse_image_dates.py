@@ -20,6 +20,6 @@ for l in f:
     # now we have:
     # int id
     # datetime.datetime for file based on its filename
-    print id, file_date
+    print '%d,%s' % (id, file_date)
 
 f.close()
