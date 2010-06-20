@@ -10,6 +10,7 @@ from fnmatch import fnmatch
 from itertools import islice
 import cv
 import urllib2
+import urllib
 import json
 import re
 import datetime
@@ -57,6 +58,15 @@ def parse_date(date):
     year, mon, day = date.split('-')
     return datetime.date(int(year), int(mon), int(day))
 
+def extract_date(date):
+    return re.sub(r'(\d{4}-\d\d-\d\d).*', r'\1', date)
+
+def create_date_range(date):
+    date = extract_date(date)
+    date = parse_date(date)
+    following = date + datetime.timedelta(days=1)
+    return date, following
+
 def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, not_detected=None, dates=None):
     sql = 'select id, filename from spi_image'
     filters = []
@@ -80,13 +90,11 @@ def read_images(cursor, has_faces=None, diff_gt=None, id=None, not_diffed=None, 
         if not isinstance(dates, list):
             dates = [dates]
         for date in dates:
-            # extract date part
-            date = re.sub(r'(\d{4}-\d\d-\d\d).*', r'\1', date)
+            date, following = create_date_range(date)
             date_filters.append('(date >= ? and date < ?)')
             args.append(date)
-            following = parse_date(date) + datetime.timedelta(days=1)
             args.append(following)
-        filters.append('%s' % (' or '.join(date_filters)))
+        filters.append('(%s)' % (' or '.join(date_filters)))
     
     if id is not None:
         filters.append('id = ?')
@@ -134,16 +142,20 @@ def index(cursor):
     page = int(request.GET.get('page', 1))
     has_faces = request.GET.get('has_faces', None)
     diff_gt = request.GET.get('diff_gt', '')
-    dates = request.GET.get('date', None)
+    date = request.GET.get('date', None)
     
     if diff_gt.strip() == '':
         diff_gt = None
     
     per_page = 30
-    images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt, dates=dates));
+    images = list(read_images(cursor, has_faces=has_faces, diff_gt=diff_gt, dates=date));
     pages = [(i+1) for i in range(len(images)/per_page)]
     images = images[(page-1)*per_page:page*per_page]
-    return dict(images=images, pages=pages, current_page=page, has_faces=has_faces, diff_gt=diff_gt)
+    
+    if not isinstance(date, list):
+        date = [date]
+    
+    return dict(images=images, pages=pages, current_page=page, has_faces=has_faces, diff_gt=diff_gt, date=date)
 
 def _load_cv_image_gray(cursor, index):
     image = get_image(cursor, index)
@@ -277,7 +289,18 @@ def diff_calc():
 
 def read_checkins(cursor):
     for url, created, name, image_url in cursor.execute('select url, created, name, image_url from checkins order by created asc'):
-        yield {'url': url, 'created': created, 'name': name, 'image_url': image_url}
+        yield {'url': url, 'created': created, 'name': name, 'image_url': image_url, 'possible': 0}
+
+@with_db_cursor
+def find_possible_face_count(cursor, checkins):
+    possible = {}
+    for date, count in cursor.execute('select date(date), count(*) from spi_image where face_count > 0 group by date(date)'):
+        possible[date] = count
+    
+    for checkin in checkins:
+        date = extract_date(checkin['created'])
+        count = possible.get(date, 0)
+        checkin['possible'] = count
 
 @route('/checkins')
 @view('checkins')
@@ -285,7 +308,33 @@ def read_checkins(cursor):
 def checkins(cursor):
     checkins = list(read_checkins(cursor))
     
+    find_possible_face_count(checkins)
+    
     return dict(checkins=checkins)
+
+@route('/people')
+@view('people')
+@with_db_cursor
+def people(cursor):
+    checkins = list(read_checkins(cursor))
+    
+    all_dates = {}
+    for checkin in checkins:
+        name = checkin['name']
+        dates = all_dates.get(name, [])
+        dates.append(checkin['created'])
+        all_dates[name] = dates
+    
+    people = []
+    for name in sorted(all_dates.keys()):
+        url_parts = ['has_faces=on']
+        for date in all_dates[name]:
+            url_parts.append('date=%s' % urllib.quote(date))
+        url = '/?%s' % ('&'.join(url_parts))
+        person = { 'name': name, 'url': url }
+        people.append(person)
+    
+    return dict(people=people)
 
 @route('/checkins/fetch')
 @with_db_cursor

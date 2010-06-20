@@ -15,8 +15,8 @@ li {
 % for checkin in checkins:
     <li>
         <a href="/?has_faces=on&amp;date={{ checkin['created'] }}"><img src="{{ checkin['image_url'] }}" /></a>
-        <div>{{ checkin['name'] }}</div>
-        <div>{{ checkin['created'] }}</div>
+        <div>{{ checkin['name'] }} ({{ checkin['possible'] }})</div>
+        <div><a href="/?has_faces=on&amp;date={{ checkin['created'] }}">{{ checkin['created'] }}</a></div>
         <div><a href="http://gowalla.com{{ checkin['url'] }}">{{ checkin['url'] }}</a></div>
     </li>
 % end

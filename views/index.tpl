@@ -44,7 +44,7 @@ ul.pagination li a.selected {
 % for page in pages:
     % if page == 1 or page == len(pages) or (abs(current_page-page) < 10):
         % prev_shown = True
-    <li><a href="?page={{ page }}{{ '&amp;has_faces=%s' % has_faces if has_faces else '' }}{{ '&amp;diff_gt=%s' % diff_gt if diff_gt else '' }}"
+    <li><a href="?page={{ page }}{{ '&amp;has_faces=%s' % has_faces if has_faces else '' }}{{ '&amp;diff_gt=%s' % diff_gt if diff_gt else '' }}{{ '&amp;' if date else '' }}{{ '&amp;'.join(['date=%s' % d for d in date]) if date else '' }}"
         % if page == current_page:
         class="selected"
         % end
@@ -75,6 +75,8 @@ ul.pagination li a.selected {
 
 <div class="nav">
     <ul>
+        <li><a href="/checkins">Checkins</a></li>
+        <li><a href="/people">People</a></li>
         <li>
             <form action="/" method="get">
                 <input type="checkbox" name="has_faces" id="has_faces" 
