@@ -316,11 +316,13 @@ def people(cursor):
     checkins = list(read_checkins(cursor))
     
     all_dates = {}
+    all_images = {}
     for checkin in checkins:
         name = checkin['name']
         dates = all_dates.get(name, [])
         dates.append(checkin['created'])
         all_dates[name] = dates
+        all_images[name] = checkin['image_url']
     
     people = []
     for name in sorted(all_dates.keys()):
@@ -328,7 +330,7 @@ def people(cursor):
         for date in all_dates[name]:
             url_parts.append('date=%s' % urllib.quote(date))
         url = '/?%s' % ('&'.join(url_parts))
-        person = { 'name': name, 'url': url }
+        person = { 'name': name, 'url': url, 'image_url': all_images[name] }
         people.append(person)
     
     return dict(people=people)
